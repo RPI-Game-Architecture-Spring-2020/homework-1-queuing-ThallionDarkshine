@@ -8,47 +8,83 @@
 */
 
 #include "ga_queue.h"
+#include <stddef.h>
+#include <climits>
+#include <cassert>
 
 ga_queue::ga_queue(int node_count)
 {
-	// TODO:
-	// Initialize the queue.
-	// For extra credit, preallocate 'node_count' elements (instead of
-	// allocating on push).
-	// See https://www.research.ibm.com/people/m/michael/podc-1996.pdf
+	// allocate dummy node
+	ga_node* node = new ga_node();
+	node->_next = NULL;
+	_head = _tail = node;
+
+	// initialize counter variables
+	_pushed = _popped = 0;
 }
 
 ga_queue::~ga_queue()
 {
-	// TODO:
-	// Free any resources held by the queue.
-	// See https://www.research.ibm.com/people/m/michael/podc-1996.pdf
+	// lock operations so the queue can be freed
+	_head_lock.lock();
+	_tail_lock.lock();
+
+	// free the individual nodes
+	ga_node* next;
+	while (_head != NULL) {
+		next = _head->_next;
+		free(_head);
+		_head = next;
+	}
+
+	_tail_lock.unlock();
+	_head_lock.unlock();
 }
 
 void ga_queue::push(void* data)
 {
-	// TODO:
-	// Push 'data' onto the queue in a thread-safe manner.
-	// If you preallocated 'node_count' elements, and if the queue is full when
-	// this function is called, you must block until another thread pops an
-	// element off the queue.
-	// See https://www.research.ibm.com/people/m/michael/podc-1996.pdf
+	// allocate new node object
+	ga_node* node = new ga_node();
+	node->_data = data;
+	node->_next = NULL;
+
+	// lock and append to queue
+	_tail_lock.lock();
+
+	_tail->_next = node;
+	_tail = node;
+	++_pushed;
+
+	_tail_lock.unlock();
 }
 
 bool ga_queue::pop(void** data)
 {
-	// TODO:
-	// Pop one element off the queue in a thread-safe manner and place it in
-	// the memory pointed to by 'data'.
-	// If the queue is empty when this function is called, return false.
-	// Otherwise return true.
-	// See https://www.research.ibm.com/people/m/michael/podc-1996.pdf
-	return false;
+	// lock and remove the queue head
+	_head_lock.lock();
+
+	ga_node* node = _head;
+	ga_node* new_head = node->_next;
+
+	if (new_head == NULL) {
+		_head_lock.unlock();
+		return false;
+	}
+
+	*data = new_head->_data;
+	_head = new_head;
+	++_popped;
+
+	_head_lock.unlock();
+
+	return true;
 }
 
 int ga_queue::get_count() const
 {
-	// TODO:
-	// Get the number of elements currently in the queue.
-	return 0;
+	// calculate queue count, accounting for potential overflow
+	int count = _pushed - _popped;
+	if (count < 0) count += UINT_MAX;
+
+	return count;
 }

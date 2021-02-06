@@ -1,4 +1,5 @@
 #pragma once
+#include <mutex>
 
 /*
 ** RPI Game Architecture Engine
@@ -13,6 +14,13 @@
 ** Thread-safe queue.
 ** https://www.research.ibm.com/people/m/michael/podc-1996.pdf
 */
+
+class ga_node {
+public:
+	void* _data;
+	ga_node* _next;
+};
+
 class ga_queue
 {
 public:
@@ -23,4 +31,11 @@ public:
 	bool pop(void** data);
 
 	int get_count() const;
+
+private:
+	ga_node* _head;
+	ga_node* _tail;
+	std::mutex _head_lock;
+	std::mutex _tail_lock;
+	unsigned int _pushed, _popped;
 };
